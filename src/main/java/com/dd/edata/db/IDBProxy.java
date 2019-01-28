@@ -199,6 +199,43 @@ public interface IDBProxy {
     <T> Future<int[]> insertBatchAsync(Consumer<int[]> callback, Executor callbackExecutor, List<T> objs);
 
     /**
+     * 增加（插入）一条数据
+     *
+     * @param t 数据
+     * @throws Exception
+     */
+    <T> boolean replace(T t) throws Exception;
+
+    /**
+     * 异步增加（插入）一条数据
+     *
+     * @param callback         插入回调接口
+     * @param callbackExecutor 回调接口执行器
+     * @param t                数据
+     * @return
+     */
+    <T> Future<Boolean> replaceAsync(Consumer<Boolean> callback, Executor callbackExecutor, T t);
+
+    /**
+     * 增加（插入）一组数据
+     *
+     * @param objs 数据列表
+     * @return
+     * @throws Exception
+     */
+    <T> int[] replaceBatch(List<T> objs) throws Exception;
+
+    /**
+     * 异步增加（插入）一组数据
+     *
+     * @param callback         插入数据回调接口
+     * @param callbackExecutor 回调接口执行器
+     * @param objs             数据列表
+     * @return
+     */
+    <T> Future<int[]> replaceBatchAsync(Consumer<int[]> callback, Executor callbackExecutor, List<T> objs);
+
+    /**
      * 删除表中所有数据（慎重，再慎重！！！）
      *
      * @param clazz 表映射的class

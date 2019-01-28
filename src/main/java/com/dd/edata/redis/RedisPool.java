@@ -27,16 +27,16 @@ public class RedisPool {
             logger.info("Zone[{}] properties not contains redis config!!!!", sid);
         } else {
             JedisPoolConfig poolConfig = new JedisPoolConfig();
-            poolConfig.setMaxTotal(Integer.valueOf(props.getProperty("redis.pool.maxActive")));
-            poolConfig.setMaxIdle(Integer.valueOf(props.getProperty("redis.pool.maxIdle")));
-            poolConfig.setMaxWaitMillis(Integer.valueOf(props.getProperty("redis.pool.maxWait")));
-            poolConfig.setTestOnBorrow(Boolean.getBoolean(props.getProperty("redis.pool.testOnBorrow")));
-            poolConfig.setTestOnReturn(Boolean.getBoolean(props.getProperty("redis.pool.testOnReturn")));
+            poolConfig.setMaxTotal(Integer.parseInt(props.getProperty("redis.pool.maxActive")));
+            poolConfig.setMaxIdle(Integer.parseInt(props.getProperty("redis.pool.maxIdle")));
+            poolConfig.setMaxWaitMillis(Integer.parseInt(props.getProperty("redis.pool.maxWait")));
+            poolConfig.setTestOnBorrow(Boolean.parseBoolean(props.getProperty("redis.pool.testOnBorrow")));
+            poolConfig.setTestOnReturn(Boolean.parseBoolean(props.getProperty("redis.pool.testOnReturn")));
             String[] ips = props.getProperty("redis.ip").split(";");
             String[] ports = props.getProperty("redis.port").split(";");
             List<JedisShardInfo> shards = new ArrayList<>();
             for (int i = 0; i < ips.length; ++i) {
-                shards.add(new JedisShardInfo(ips[i], Integer.valueOf(ports[i]).intValue()));
+                shards.add(new JedisShardInfo(ips[i], Integer.parseInt(ports[i])));
             }
             shardedJedisPool = new ShardedJedisPool(poolConfig, shards);
             logger.info("Zone[{}] shared jedis pool to {} : {} created success!!!", sid, props.getProperty("redis.ip"),

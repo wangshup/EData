@@ -17,11 +17,9 @@ import java.util.function.Supplier;
  */
 public abstract class AbstractDBServiceProxy implements IDBProxy {
     private static final Logger logger = LoggerFactory.getLogger(AbstractDBServiceProxy.class);
-    private static final int WORK_QUEUE_SIZE = 2048;
     protected final ExecutorService[] executors;
     protected DBService dbService;
     protected int sid;
-
 
     public AbstractDBServiceProxy(int sid) {
         this.sid = sid;
@@ -29,10 +27,7 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
         size = ceilingPowerOfTwo(size << 1);
         ExecutorService[] ess = new ExecutorService[size];
         for (int i = 0; i < size; ++i) {
-            ess[i] = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                    new ArrayBlockingQueue<>(WORK_QUEUE_SIZE, true),
-                    new ThreadFactoryImpl("EData-Thread", sid, i),
-                    (r, e) -> logger.error("Thread task's queue full, current size {}, max size {} ", e.getQueue().size(), WORK_QUEUE_SIZE));
+            ess[i] = Executors.newSingleThreadExecutor(new ThreadFactoryImpl("Edata-Thread", sid, i));
         }
         executors = ess;
     }
@@ -80,6 +75,10 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
                 logger.error("executor {} shutdown error!", es, e);
             }
         }
+    }
+
+    public void propertiesReload(Properties props) {
+        this.dbService.propertiesReload(props);
     }
 
     protected <T> Future<T> execute(Supplier<T> supplier, Executor executor, Consumer<? super T> callback, Executor callbackExecutor) {
@@ -271,6 +270,30 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
     @Override
     public <T> int[] insertBatch(List<T> objs) throws Exception {
         return insertBatchAsync(null, null, objs).get();
+    }
+
+    /**
+     * 增加（插入）一条数据
+     *
+     * @param t 数据
+     * @throws Exception
+     */
+    @Override
+    public <T> boolean replace(T t) throws Exception {
+        return replaceAsync(null, null, t).get();
+    }
+
+
+    /**
+     * 增加（插入）一组数据
+     *
+     * @param objs 数据列表
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public <T> int[] replaceBatch(List<T> objs) throws Exception {
+        return replaceBatchAsync(null, null, objs).get();
     }
 
 

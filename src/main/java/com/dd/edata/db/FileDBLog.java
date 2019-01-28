@@ -24,9 +24,6 @@ public class FileDBLog {
 
     public FileDBLog(int sid, File logDir) {
         this.logDir = logDir;
-        if (!logDir.exists()) {
-            logDir.mkdirs();
-        }
         this.sid = sid;
     }
 

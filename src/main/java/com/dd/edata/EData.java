@@ -4,16 +4,22 @@ import com.dd.edata.db.*;
 import com.dd.edata.redis.IRedisService;
 import com.dd.edata.redis.RedisPool;
 import com.dd.edata.redis.RedisService;
+import com.dd.edata.utils.FileMonitor;
+import com.dd.edata.utils.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Tuple;
 
-import javax.sql.DataSource;
 import java.util.*;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+
+/**
+ * Edata服务类
+ *
+ * @author wangshupeng
+ */
 
 /**
  * Edata服务类
@@ -23,9 +29,10 @@ import java.util.function.Consumer;
 public final class EData {
     private static final Logger logger = LoggerFactory.getLogger(EData.class);
     private static Map<Integer, EData> eDatas = new HashMap<>();
+    private static ScheduledExecutorService schedule = Executors.newSingleThreadScheduledExecutor();
     private AtomicInteger refCount = new AtomicInteger(0);
     private IDBProxy dbProxy;
-    private IRedisService redisService;
+    private volatile IRedisService redisService;
     private int sid;
 
     private EData(int sid, String logPath) {
@@ -36,6 +43,34 @@ public final class EData {
     private EData(int sid) {
         this.sid = sid;
         dbProxy = new DBServiceProxy(sid);
+    }
+
+    /**
+     * 启动EData服务
+     *
+     * @param sid      服务器ID
+     * @param pkg      数据库实体类所在的Java包路径
+     * @param cl       pkg的类加载器
+     * @param propFile edata配置文件，默认：edata.properties
+     * @return EData
+     */
+    public static synchronized EData start(int sid, String pkg, ClassLoader cl, String propFile) {
+        EData eData = eDatas.get(sid);
+        if (eData != null) {
+            logger.warn("The Edata server {} has been started!!", sid);
+        } else {
+            Properties props = Util.getProperties(propFile);
+            boolean bWriteLog = Boolean.parseBoolean(props.getProperty("db.log", "true"));
+            if (bWriteLog) {
+                eData = new EData(sid, props.getProperty("db.log.dir", "dblogs"));
+            } else {
+                eData = new EData(sid);
+            }
+            eData.init(sid, pkg, cl, props);
+            eDatas.put(sid, eData);
+            eData.startPropFileMonitor(propFile);
+        }
+        return eData.retain();
     }
 
     /**
@@ -61,27 +96,8 @@ public final class EData {
         return eData.retain();
     }
 
-    /**
-     * 启动EData服务
-     *
-     * @param sid     服务器ID
-     * @param pkg     数据库实体类所在的Java包路径
-     * @param cl      pkg的类加载器
-     * @param ds      数据库DataSource
-     * @param logPath EData DB日志文件路径
-     * @param isCobar 是否使用Cobar
-     * @return EData
-     */
-    public static synchronized EData start(int sid, String pkg, ClassLoader cl, DataSource ds, String logPath, boolean isCobar) {
-        EData eData = eDatas.get(sid);
-        if (eData != null) {
-            logger.warn("The Edata server {} has been started!!", sid);
-        } else {
-            eData = new EData(sid, logPath);
-            eData.init(sid, pkg, cl, ds, isCobar);
-            eDatas.put(sid, eData);
-        }
-        return eData.retain();
+    public static synchronized EData start(int sid, String pkg, ClassLoader cl) {
+        return start(sid, pkg, cl, "edata.properties");
     }
 
     private void init(int sid, String pkg, ClassLoader cl, Properties props) {
@@ -90,10 +106,29 @@ public final class EData {
         redisService = new RedisService(new RedisPool(sid, props));
     }
 
-    private void init(int sid, String pkg, ClassLoader cl, DataSource ds, boolean isCobar) {
-        ClassLoader classLoader = cl != null ? cl : Thread.currentThread().getContextClassLoader();
-        ((AbstractDBServiceProxy) dbProxy).init(pkg, classLoader, ds, isCobar);
-        logger.warn("redis service not start!!!");
+    private void propertiesReload(Properties props) {
+        ((AbstractDBServiceProxy) dbProxy).propertiesReload(props);
+        IRedisService newRs = new RedisService(new RedisPool(sid, props));
+        IRedisService oldRs = redisService;
+        redisService = newRs;
+        if (oldRs != null) {
+            ((RedisService) oldRs).shutdown();
+        }
+    }
+
+    private void startPropFileMonitor(String file) {
+        FileMonitor monitor = new FileMonitor(false);
+        monitor.addFile(file);
+        monitor.addListener(list -> {
+            for (FileMonitor.MonitoredFile f : list) {
+                if (f.getFile().getName().equalsIgnoreCase(file)) {
+                    propertiesReload(Util.getProperties(file));
+                    logger.info("EData properties file [{}] reload success!!!", file);
+                    break;
+                }
+            }
+        });
+        schedule.scheduleAtFixedRate(monitor, 120, 30, TimeUnit.SECONDS);
     }
 
     /**
@@ -102,8 +137,12 @@ public final class EData {
     public synchronized void shutdown() {
         if (release() <= 0) {
             eDatas.remove(sid);
-            if (dbProxy != null) ((AbstractDBServiceProxy) dbProxy).shutdown();
-            if (redisService != null) ((RedisService) redisService).shutdown();
+            if (dbProxy != null) {
+                ((AbstractDBServiceProxy) dbProxy).shutdown();
+            }
+            if (redisService != null) {
+                ((RedisService) redisService).shutdown();
+            }
         }
     }
 
@@ -747,6 +786,99 @@ public final class EData {
     }
 
     /**
+     * 增加（插入或替换）一条数据
+     *
+     * @param t 数据
+     * @throws Exception
+     */
+    public <T> boolean replace(T t) throws Exception {
+        return dbProxy.replace(t);
+    }
+
+    /**
+     * 异步增加（插入或替换）一条数据
+     *
+     * @param t 数据
+     * @return
+     */
+    public <T> Future<Boolean> replaceAsync(T t) {
+        return replaceAsync(null, null, t);
+    }
+
+    /**
+     * 异步增加（插入或替换）一条数据
+     *
+     * @param callback 插入回调接口
+     * @param t        数据
+     * @return
+     */
+    public <T> Future<Boolean> replaceAsync(Consumer<Boolean> callback, T t) {
+        return replaceAsync(callback, null, t);
+    }
+
+    /**
+     * 异步增加（插入或替换）一条数据
+     *
+     * @param callback         插入回调接口
+     * @param callbackExecutor 回调接口执行器
+     * @param t                数据
+     * @return
+     */
+    public <T> Future<Boolean> replaceAsync(Consumer<Boolean> callback, Executor callbackExecutor, T t) {
+        return dbProxy.replaceAsync(callback, callbackExecutor, t);
+    }
+
+    /**
+     * 增加（插入或替换）一组数据
+     *
+     * @param objs 数据列表
+     * @return
+     * @throws Exception
+     */
+    public <T> int[] replaceBatch(List<T> objs) throws Exception {
+        if (objs == null || objs.isEmpty()) {
+            return null;
+        }
+        return dbProxy.replaceBatch(objs);
+    }
+
+    /**
+     * 异步增加（插入或替换）一组数据
+     *
+     * @param objs 数据列表
+     * @return
+     */
+    public <T> Future<int[]> replaceBatchAsync(List<T> objs) {
+        return replaceBatchAsync(null, null, objs);
+    }
+
+    /**
+     * 异步增加（插入或替换）一组数据
+     *
+     * @param callback 插入数据回调接口
+     * @param objs     数据列表
+     * @return
+     */
+    public <T> Future<int[]> replaceBatchAsync(Consumer<int[]> callback, List<T> objs) {
+        return replaceBatchAsync(callback, null, objs);
+    }
+
+    /**
+     * 异步增加（插入或替换）一组数据
+     *
+     * @param callback         插入数据回调接口
+     * @param callbackExecutor 回调接口执行器
+     * @param objs             数据列表
+     * @return
+     */
+    public <T> Future<int[]> replaceBatchAsync(Consumer<int[]> callback, Executor callbackExecutor, List<T> objs) {
+        if (objs == null || objs.isEmpty()) {
+            return null;
+        }
+        return dbProxy.replaceBatchAsync(callback, callbackExecutor, objs);
+    }
+
+    /**
      * 删除表中所有数据（慎重，再慎重！！！）
      *
      * @param clazz 表映射的class
@@ -962,3 +1094,4 @@ public final class EData {
         return redisService.exists(key);
     }
 }
+

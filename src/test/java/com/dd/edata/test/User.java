@@ -1,16 +1,16 @@
 package com.dd.edata.test;
 
-import com.dd.edata.db.annotation.Column;
-import com.dd.edata.db.annotation.Table;
-import com.dd.edata.db.annotation.TablePrimaryKey;
+import com.dd.edata.db.annotation.*;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Table(name = "user")
 @TablePrimaryKey(members = {"id"})
+@TableIndices(@TableIndex(name = "idx_test", members = {"height", "weight", "money"}))
 public class User {
-    @Column(isNull = false)
+    @Column(isNull = false, autoIncrement = false)
     private long id;
 
     @Column(type = "varchar", len = 12)
@@ -19,6 +19,15 @@ public class User {
     @Column(name = "create_time")
     private Date createTime;
 
+    @Column
+    private int height;
+
+    @Column
+    private int money;
+
+    @Column
+    private int weight;
+
     public User() {
     }
 
@@ -26,6 +35,9 @@ public class User {
         this.id = id;
         this.name = name;
         this.createTime = Calendar.getInstance().getTime();
+        this.height = ThreadLocalRandom.current().nextInt(100, 200);
+        this.weight = ThreadLocalRandom.current().nextInt(30, 200);
+        this.money = ThreadLocalRandom.current().nextInt(0, 10000000);
     }
 
     public long getId() {
@@ -54,6 +66,6 @@ public class User {
 
     @Override
     public String toString() {
-        return "User{" + "id=" + id + ", name='" + name + '\'' + ", createTime=" + createTime + '}';
+        return "User{" + "id=" + id + ", name='" + name + '\'' + ", createTime=" + createTime + ", height=" + height + ", money=" + money + ", weight=" + weight + '}';
     }
 }

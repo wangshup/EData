@@ -207,7 +207,7 @@ public final class DBServiceWithLogProxy extends AbstractDBServiceProxy {
         ExecutorService es = getExecutor(t.getClass());
         return execute(() -> {
             try {
-                return dbService.insert(t);
+                return dbService.insertOrReplace(t, false);
             } catch (Exception e) {
                 logger.error("sid {} addAsync error!", sid, e);
             } finally {
@@ -223,7 +223,39 @@ public final class DBServiceWithLogProxy extends AbstractDBServiceProxy {
         ExecutorService es = getExecutor(objs.get(0).getClass());
         return execute(() -> {
             try {
-                return dbService.batchInsert(objs);
+                return dbService.batchInsertOrReplace(objs, false);
+            } catch (Exception e) {
+                logger.error("sid {} addBatchAsync error!", sid, e);
+            } finally {
+                dbSyncSuccess(tx);
+            }
+            return null;
+        }, es, callback, callbackExecutor);
+    }
+
+    @Override
+    public <T> Future<Boolean> replaceAsync(Consumer<Boolean> callback, Executor callbackExecutor, T t) {
+        final long tx = writeDBLog(DBService.DB_INSERT, t);
+        ExecutorService es = getExecutor(t.getClass());
+        return execute(() -> {
+            try {
+                return dbService.insertOrReplace(t, true);
+            } catch (Exception e) {
+                logger.error("sid {} addAsync error!", sid, e);
+            } finally {
+                dbSyncSuccess(tx);
+            }
+            return false;
+        }, es, callback, callbackExecutor);
+    }
+
+    @Override
+    public <T> Future<int[]> replaceBatchAsync(Consumer<int[]> callback, Executor callbackExecutor, List<T> objs) {
+        final long tx = writeDBLog(DBService.DB_INSERT_BATCH, objs);
+        ExecutorService es = getExecutor(objs.get(0).getClass());
+        return execute(() -> {
+            try {
+                return dbService.batchInsertOrReplace(objs, true);
             } catch (Exception e) {
                 logger.error("sid {} addBatchAsync error!", sid, e);
             } finally {

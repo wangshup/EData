@@ -13,13 +13,16 @@ public class EDataTest {
 
     public static void main(String[] args) throws Exception {
         //初始化并启动EData
-        EData edata = EData.start(0, "com.dd.edata.test", EDataTest.class.getClassLoader(), getConfigProperties("config.properties"));
+        EData edata = EData.start(0, "com.dd.edata.test", EDataTest.class.getClassLoader(),"config.properties");
 
+        User ut = new User(0, "name0");
         //同步插入一条数据
-        edata.insert(new User(0, "name0"));
+        boolean name0 = edata.replace(ut);
 
+        ut = new User(0,"name00");
+        edata.replace(ut);
         //异步插入一条数据
-        edata.insertAsync(new User(1, "name1"));
+        edata.replaceAsync(new User(1, "name1"));
 
         //同步批量插入一组数据
         int i = 2;
@@ -27,14 +30,16 @@ public class EDataTest {
         for (; i < 10; i++) {
             list.add(new User(i, "name" + i));
         }
-        edata.insertBatch(list);
+        long now = System.currentTimeMillis();
+        edata.replaceBatch(list);
+        System.out.println(System.currentTimeMillis() - now);
 
         //异步批量插入一组数据
         list.clear();
         for (; i < 20; i++) {
             list.add(new User(i, "name" + i));
         }
-        edata.insertBatchAsync((result) -> {
+        edata.replaceBatchAsync((result) -> {
             System.out.println(((int[]) result).length + " datas async inserted successfully");
         }, list);
 

@@ -1,36 +1,31 @@
 package com.dd.edata.utils;
 
+import com.dd.edata.EData;
 import com.dd.edata.db.DBDataType;
 import com.dd.edata.db.annotation.Column;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
+import java.io.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class Util {
+    private static final Logger logger = LoggerFactory.getLogger(EData.class);
+
     private static final Gson gson = new Gson();
-    private static final ThreadLocal<SimpleDateFormat> sdfHolder = new ThreadLocal<SimpleDateFormat>() {
-        @Override
-        protected SimpleDateFormat initialValue() {
-            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        }
-    };
+    private static final ThreadLocal<SimpleDateFormat> sdfHolder = ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
 
     public static String formatDate(Date d) {
         return sdfHolder.get().format(d);
@@ -249,5 +244,15 @@ public class Util {
                 }
             }
         }
+    }
+
+    public static Properties getProperties(String configFile) {
+        Properties configProperties = new Properties();
+        try (InputStream ins = new FileInputStream(configFile)) {
+            configProperties.load(ins);
+        } catch (IOException e) {
+            logger.error("read config {} properties error", configFile, e);
+        }
+        return configProperties;
     }
 }

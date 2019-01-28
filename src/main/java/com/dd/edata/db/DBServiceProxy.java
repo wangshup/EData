@@ -77,7 +77,7 @@ public final class DBServiceProxy extends AbstractDBServiceProxy {
         ExecutorService es = getExecutor(t.getClass());
         return execute(() -> {
             try {
-                return dbService.insert(t);
+                return dbService.insertOrReplace(t, false);
             } catch (Exception e) {
                 logger.error("sid {} addAsync error!", sid, e);
             }
@@ -90,7 +90,33 @@ public final class DBServiceProxy extends AbstractDBServiceProxy {
         ExecutorService es = getExecutor(objs.get(0).getClass());
         return execute(() -> {
             try {
-                return dbService.batchInsert(objs);
+                return dbService.batchInsertOrReplace(objs, false);
+            } catch (Exception e) {
+                logger.error("sid {} addBatchAsync error!", sid, e);
+            }
+            return null;
+        }, es, callback, callbackExecutor);
+    }
+
+    @Override
+    public <T> Future<Boolean> replaceAsync(Consumer<Boolean> callback, Executor callbackExecutor, T t) {
+        ExecutorService es = getExecutor(t.getClass());
+        return execute(() -> {
+            try {
+                return dbService.insertOrReplace(t, true);
+            } catch (Exception e) {
+                logger.error("sid {} addAsync error!", sid, e);
+            }
+            return false;
+        }, es, callback, callbackExecutor);
+    }
+
+    @Override
+    public <T> Future<int[]> replaceBatchAsync(Consumer<int[]> callback, Executor callbackExecutor, List<T> objs) {
+        ExecutorService es = getExecutor(objs.get(0).getClass());
+        return execute(() -> {
+            try {
+                return dbService.batchInsertOrReplace(objs, true);
             } catch (Exception e) {
                 logger.error("sid {} addBatchAsync error!", sid, e);
             }
