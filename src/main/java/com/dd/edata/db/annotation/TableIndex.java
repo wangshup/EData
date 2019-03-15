@@ -21,10 +21,15 @@ public @interface TableIndex {
     public String name();
 
     /**
+     * 是否Unique
+     */
+    public boolean isUnique() default false;
+
+    /**
      * 索引数据类型，只支持简单数据类型作为索引
-     * 
+     *
      * @return
      */
-    public java.lang.String[] members();
+    public String[] members();
 
 }

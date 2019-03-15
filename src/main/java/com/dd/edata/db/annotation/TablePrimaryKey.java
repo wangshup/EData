@@ -20,5 +20,5 @@ public @interface TablePrimaryKey {
      * 
      * @return
      */
-    public java.lang.String[] members();
+    public String[] members();
 }

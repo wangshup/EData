@@ -14,10 +14,12 @@ public @interface Table {
 
     /** 正常策略，表名字自定义，表名字=name()，默认策略为该策略 */
     public static final int POLICY_NORMAL = 0;
+    /** 按服务器ID建表 */
+    public static final int POLICY_SERVER_ID = 1;
     /** 按月建表策略；表名字格式：name()_year_month ;month 取值[1,12] */
-    public static final int POLICY_YEAR_MONTH = 1;
+    public static final int POLICY_YEAR_MONTH = 2;
     /** 按天建表策略；表名字格式：name()_year_month_day; month 取值[1,12]，day 取值[1,31] */
-    public static final int POLICY_YEAR_MONTH_DAY = 2;
+    public static final int POLICY_YEAR_MONTH_DAY = 3;
 
     /**
      * DB中的表名字

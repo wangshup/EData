@@ -45,6 +45,11 @@ public final class EData {
         dbProxy = new DBServiceProxy(sid);
     }
 
+    private EData(int sid, boolean readOnly) {
+        this.sid = sid;
+        dbProxy = new DBServiceReadonlyProxy(sid);
+    }
+
     /**
      * 启动EData服务
      *
@@ -55,41 +60,31 @@ public final class EData {
      * @return EData
      */
     public static synchronized EData start(int sid, String pkg, ClassLoader cl, String propFile) {
-        EData eData = eDatas.get(sid);
-        if (eData != null) {
-            logger.warn("The Edata server {} has been started!!", sid);
-        } else {
-            Properties props = Util.getProperties(propFile);
-            boolean bWriteLog = Boolean.parseBoolean(props.getProperty("db.log", "true"));
-            if (bWriteLog) {
-                eData = new EData(sid, props.getProperty("db.log.dir", "dblogs"));
-            } else {
-                eData = new EData(sid);
-            }
-            eData.init(sid, pkg, cl, props);
-            eDatas.put(sid, eData);
-            eData.startPropFileMonitor(propFile);
-        }
-        return eData.retain();
+        boolean bMonitor = !eDatas.containsKey(sid);
+        EData eData = start(sid, pkg, cl, Util.getProperties(propFile));
+        if (bMonitor) eData.startPropFileMonitor(propFile);
+        return eData;
     }
 
-    /**
-     * 启动EData服务
-     *
-     * @param sid   服务器ID
-     * @param pkg   数据库实体类所在的Java包路径
-     * @param cl    pkg的类加载器
-     * @param props 数据库和redis的属性配置
-     * @return EData
-     */
     public static synchronized EData start(int sid, String pkg, ClassLoader cl, Properties props) {
+        return start(sid, pkg, cl, props, false);
+    }
+
+    public static synchronized EData start(int sid, String pkg, ClassLoader cl, Properties props, boolean readOnly) {
         EData eData = eDatas.get(sid);
         if (eData != null) {
             logger.warn("The Edata server {} has been started!!", sid);
         } else {
-            boolean bWriteLog = Boolean.parseBoolean(props.getProperty("db.log", "true"));
-            if (bWriteLog) eData = new EData(sid, props.getProperty("db.log.dir", "dblogs"));
-            else eData = new EData(sid);
+            if (readOnly) {
+                eData = new EData(sid, true);
+            } else {
+                boolean bWriteLog = Boolean.parseBoolean(props.getProperty("db.log", "true"));
+                if (bWriteLog) {
+                    eData = new EData(sid, props.getProperty("db.log.dir", "dblogs"));
+                } else {
+                    eData = new EData(sid);
+                }
+            }
             eData.init(sid, pkg, cl, props);
             eDatas.put(sid, eData);
         }

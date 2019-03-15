@@ -649,9 +649,10 @@ class DBService {
         private Map<String, String> tableNames = new HashMap<>();
         private Map<Class<?>, Map<String, Field>> fields = new HashMap<>();
         private Map<Class<?>, Set<Field>> primaryKeys = new HashMap<>();
+        private IDBProxy dbProxy;
 
         private String getTableName(Class<?> clazz) {
-            Table tna = (Table) clazz.getAnnotation(Table.class);
+            Table tna = clazz.getAnnotation(Table.class);
             switch (tna.policy()) {
                 case Table.POLICY_YEAR_MONTH:
                 case Table.POLICY_YEAR_MONTH_DAY: {
@@ -707,10 +708,11 @@ class DBService {
         }
 
         private void init(IDBProxy proxy, String packagePath, ClassLoader cl) {
-            initTables(proxy, Util.getClassList(packagePath, true, null, cl));
+            this.dbProxy = proxy;
+            initTables(Util.getClassList(packagePath, true, null, cl));
         }
 
-        private void initTables(IDBProxy proxy, List<Class<?>> dbTables) {
+        private void initTables(List<Class<?>> dbTables) {
             try {
                 for (Class<?> c : dbTables) {
                     initTables(c);
@@ -731,7 +733,7 @@ class DBService {
             createTable(clazz, tableName);
             checkTable(clazz, tableName);
 
-            Table tna = (Table) clazz.getAnnotation(Table.class);
+            Table tna = clazz.getAnnotation(Table.class);
             switch (tna.policy()) {
                 case Table.POLICY_YEAR_MONTH: {
                     for (int i = 0; i < tna.count(); ++i) {
@@ -758,12 +760,14 @@ class DBService {
         }
 
         private String getTableName(Class<?> clazz, Calendar cal) {
-            Table tna = (Table) clazz.getAnnotation(Table.class);
+            Table tna = clazz.getAnnotation(Table.class);
             int year = cal.get(Calendar.YEAR);
             int month = cal.get(Calendar.MONTH) + 1;
 
             String tableName = (tna.name() != null && !tna.name().equals("")) ? tna.name() : clazz.getSimpleName();
-            if (tna.policy() == Table.POLICY_YEAR_MONTH) {
+            if (tna.policy() == Table.POLICY_SERVER_ID) {
+                tableName = tna.name() + "_" + dbProxy.getSid();
+            } else if (tna.policy() == Table.POLICY_YEAR_MONTH) {
                 tableName = tna.name() + "_" + year + "_" + month;
             } else if (tna.policy() == Table.POLICY_YEAR_MONTH_DAY) {
                 int day = cal.get(Calendar.DAY_OF_MONTH);
@@ -922,7 +926,11 @@ class DBService {
                         }
                         sperator = ", ";
                     }
-                    sql.append(", KEY ").append(ti.name()).append(" (").append(indexMemebers).append(")");
+                    if (ti.isUnique()) {
+                        sql.append(", UNIQUE KEY ").append(ti.name()).append(" (").append(indexMemebers).append(")");
+                    } else {
+                        sql.append(", KEY ").append(ti.name()).append(" (").append(indexMemebers).append(")");
+                    }
                 }
             }
             sql.append(") ENGINE = InnoDB DEFAULT CHARSET = utf8 COLLATE = utf8_unicode_ci");

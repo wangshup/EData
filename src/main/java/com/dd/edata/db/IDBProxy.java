@@ -10,6 +10,8 @@ import java.util.function.Consumer;
  */
 public interface IDBProxy {
 
+    int getSid();
+
     /**
      * 查询一个对象
      *

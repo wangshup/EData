@@ -24,7 +24,7 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
     public AbstractDBServiceProxy(int sid) {
         this.sid = sid;
         int size = Runtime.getRuntime().availableProcessors();
-        size = ceilingPowerOfTwo(size << 1);
+        size = Math.max(8, ceilingPowerOfTwo(size << 1));
         ExecutorService[] ess = new ExecutorService[size];
         for (int i = 0; i < size; ++i) {
             ess[i] = Executors.newSingleThreadExecutor(new ThreadFactoryImpl("Edata-Thread", sid, i));
@@ -64,6 +64,11 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
 
     public void init(String pkg, ClassLoader cl, Properties props) {
         init(pkg, cl, createDataSource(props), Boolean.parseBoolean(props.getProperty("db.cobar", "false")));
+    }
+
+    @Override
+    public int getSid() {
+        return sid;
     }
 
     public void shutdown() {
@@ -318,8 +323,8 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
         return updateAsync(null, null, clazz, name, value, wheres).get();
     }
 
-    final ExecutorService getExecutor(Class<?> clazz) {
-        return executors[(executors.length - 1) & clazz.hashCode()];
+    protected ExecutorService getExecutor(Class<?> clazz) {
+        return executors[(executors.length - 1) & hash(clazz.hashCode())];
     }
 
     static class ThreadFactoryImpl implements ThreadFactory {
@@ -337,5 +342,10 @@ public abstract class AbstractDBServiceProxy implements IDBProxy {
         public Thread newThread(final Runnable target) {
             return new Thread(target, this.namePrefix + "[" + this.sid + "-" + this.id + "]");
         }
+    }
+
+    static final int hash(long id) {
+        int h = (int) (id ^ id >>> 32);
+        return (h ^ (h >>> 16)) & 0x7fffffff;
     }
 }
