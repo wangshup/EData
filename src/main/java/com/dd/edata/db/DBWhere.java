@@ -28,25 +28,50 @@ public class DBWhere {
         this.cond = cond;
     }
 
-    public static DBWhere equal(String name, Object value) {
+    public static DBWhere EQ(String name, Object value) {
         return new DBWhere(name, value, WhereCond.EQ);
     }
 
-    public static DBWhere limit(Object value) {
-        return new DBWhere(null, value, WhereCond.LIMIT);
+    public static DBWhere NEQ(String name, Object value) {
+        return new DBWhere(name, value, WhereCond.NEQ);
     }
 
-    public static DBWhere orderDesc(String name) {
+    public static DBWhere IN(String name, List<?> values) {
+        return new DBWhere(name, values, WhereCond.IN);
+    }
+
+    public static DBWhere LT(String name, Object value) {
+        return new DBWhere(name, value, WhereCond.LT);
+    }
+
+    public static DBWhere LE(String name, Object value) {
+        return new DBWhere(name, value, WhereCond.LE);
+    }
+
+    public static DBWhere GT(String name, Object value) {
+        return new DBWhere(name, value, WhereCond.GT);
+    }
+
+    public static DBWhere GE(String name, Object value) {
+        return new DBWhere(name, value, WhereCond.GE);
+    }
+
+    public static DBWhere LIKE(String name, Object value) {
+        return new DBWhere(name, value, WhereCond.LIKE);
+    }
+
+    public static DBWhere ORDER_DESC(String name) {
         return new DBWhere(name, null, WhereCond.ORDER_DESC);
     }
 
-    public static DBWhere orderAsc(String name) {
+    public static DBWhere ORDER_ASC(String name) {
         return new DBWhere(name, null, WhereCond.ORDER_ASC);
     }
 
-    public static DBWhere in(String name, List<?> values) {
-        return new DBWhere(name, values, WhereCond.IN);
+    public static DBWhere LIMIT(Object value) {
+        return new DBWhere(null, value, WhereCond.LIMIT);
     }
+
 
     public String getName() {
         return name;
@@ -61,6 +86,6 @@ public class DBWhere {
     }
 
     public enum WhereCond {
-        EQ, IN, LT, LE, GT, GE, LIKE, ORDER_ASC, ORDER_DESC, LIMIT
+        EQ, NEQ, IN, LT, LE, GT, GE, LIKE, ORDER_ASC, ORDER_DESC, LIMIT
     }
 }

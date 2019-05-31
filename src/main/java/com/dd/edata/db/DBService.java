@@ -19,7 +19,7 @@ import java.util.*;
  *
  * @author wangshupeng
  */
-class DBService {
+final class DBService {
     static final byte DB_NOOP = 0;
     static final byte DB_INSERT = 1;
     static final byte DB_INSERT_BATCH = 2;
@@ -63,7 +63,7 @@ class DBService {
     protected <T> T select(Class<T> clazz, List<String> columns, DBWhere... wheres) throws Exception {
         DBWhere[] newWheres = new DBWhere[wheres.length + 1];
         System.arraycopy(wheres, 0, newWheres, 0, wheres.length);
-        newWheres[wheres.length] = DBWhere.limit(1);
+        newWheres[wheres.length] = DBWhere.LIMIT(1);
         List<T> l = selectList(clazz, columns, newWheres);
         if (l == null || l.isEmpty()) {
             return null;
@@ -284,7 +284,7 @@ class DBService {
                         }
                     }
                 }
-                return stmt.execute();
+                return stmt.executeUpdate() > 0;
             } catch (Exception e) {
                 throw e;
             }
@@ -305,7 +305,7 @@ class DBService {
                     Column ann = f.getAnnotation(Column.class);
                     stmt.setObject(index++, ann.isJson() ? Util.toJson(f.get(t)) : f.get(t));
                 }
-                return stmt.execute();
+                return stmt.executeUpdate() > 0;
             } catch (Exception e) {
                 throw e;
             }
@@ -540,14 +540,14 @@ class DBService {
                     }
                     stmt.setObject(index++, ann.isJson() ? Util.toJson(f.get(t)) : f.get(t));
                 }
-                boolean b = stmt.execute();
+                boolean result = stmt.executeUpdate() > 0;
                 if (autoIncrField != null) {
                     ResultSet rs = stmt.getGeneratedKeys();
                     if (rs.next()) {
                         BeanUtils.copyProperty(t, autoIncrField.getName(), rs.getObject(1));
                     }
                 }
-                return b;
+                return result;
             } catch (Exception e) {
                 throw e;
             }
@@ -634,7 +634,8 @@ class DBService {
         String tableName = dbUtil.getTableName(clazz);
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement((isCobar ? "delete from " : "TRUNCATE TABLE ") + tableName);) {
             try {
-                return stmt.execute();
+                 stmt.executeUpdate();
+                 return true;
             } catch (Exception e) {
                 throw e;
             }
@@ -835,41 +836,19 @@ class DBService {
 
         private void addField(Field f, String tableName) throws SQLException {
             String addSql = "alter table " + tableName + " add " + makeFieldSql(f);
-            // addSql += ";";
             logger.info("[DBService]: alter table:{}", addSql);
-            Connection conn = null;
-            PreparedStatement stmt = null;
-            try {
-                conn = getConnection();
-                stmt = conn.prepareStatement(addSql);
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(addSql)) {
                 stmt.execute();
-            } finally {
-                if (stmt != null) {
-                    stmt.close();
-                }
-                if (conn != null) {
-                    conn.close();
-                }
             }
         }
 
         private void modifyField(Field f, String tableName) throws SQLException {
             String addSql = "alter table " + tableName + " MODIFY COLUMN " + makeFieldSql(f);
-            // addSql += ";";
             logger.info("[DBService]: alter table:{}", addSql);
-            Connection conn = null;
-            PreparedStatement stmt = null;
-            try {
-                conn = getConnection();
-                stmt = conn.prepareStatement(addSql);
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(addSql)) {
                 stmt.execute();
-            } finally {
-                if (stmt != null) {
-                    stmt.close();
-                }
-                if (conn != null) {
-                    conn.close();
-                }
             }
         }
 
@@ -933,7 +912,7 @@ class DBService {
                     }
                 }
             }
-            sql.append(") ENGINE = InnoDB DEFAULT CHARSET = utf8 COLLATE = utf8_unicode_ci");
+            sql.append(") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci");
 
             logger.info("[DBService]: create table:{}", sql.toString());
             try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -957,7 +936,7 @@ class DBService {
             }
 
             if (ann.charSens()) {
-                sql.append(" CHARACTER SET utf8 COLLATE utf8_bin ");
+                sql.append(" CHARACTER SET utf8mb4 COLLATE utf8mb4_bin ");
             }
 
             if (!ann.isNull()) {

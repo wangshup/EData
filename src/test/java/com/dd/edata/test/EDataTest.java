@@ -17,12 +17,17 @@ public class EDataTest {
 
         User ut = new User(0, "name0");
         //同步插入一条数据
-        boolean name0 = edata.replace(ut);
+        boolean result = edata.replace(ut);
 
         ut = new User(0,"name00");
-        edata.replace(ut);
+        result = edata.replace(ut);
         //异步插入一条数据
-        edata.replaceAsync(new User(1, "name1"));
+        result = edata.insert(new User(1, "name1"));
+        result = edata.insert(new User(1, "name1"));
+        int size = edata.update(new User(2, "name11"));
+        result = edata.delete(new User(1, "name11"));
+        result = edata.delete(new User(1, "name11"));
+        result = edata.truncate(User.class);
 
         //同步批量插入一组数据
         int i = 2;
@@ -39,18 +44,18 @@ public class EDataTest {
         for (; i < 20; i++) {
             list.add(new User(i, "name" + i));
         }
-        edata.replaceBatchAsync((result) -> {
-            System.out.println(((int[]) result).length + " datas async inserted successfully");
+        edata.replaceBatchAsync((r) -> {
+            System.out.println(((int[]) r).length + " datas async inserted successfully");
         }, list);
 
         //同步查询一条数据
-        User u = edata.select(User.class, DBWhere.equal("id", 0));
+        User u = edata.select(User.class, DBWhere.EQ("id", 0));
         System.out.println(u);
 
         //异步查询一条数据
         edata.selectAsync((user) -> {
             System.out.println(user);
-        }, User.class, DBWhere.equal("id", 1));
+        }, User.class, DBWhere.EQ("id", 1));
 
         //异步查询一组数据
         edata.selectListAsync((users) -> {
